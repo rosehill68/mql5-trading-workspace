@@ -1,15 +1,15 @@
 //+------------------------------------------------------------------+
 //|                                 ARTS_RiskManager_v1.4.mqh        |
 //| Non-Repainting Fixed (Claude Risk #1)                            |
-//| Version 1.4 | 2026.02.18 21:30 CET                              |
+//| Version 1.5 | 2026.02.19 02:00 CET                              |
 //+------------------------------------------------------------------+
-//| VERSION: 1.4.0                                                    |
-//| LETZTES ÄNDERUNGSDATUM: 2026-02-18 21:30 CET                     |
-//| ÄNDERUNGEN: Input validation, improved error handling           |
+//| VERSION: 1.5.0 - Critical Fixes                                   |
+//| LETZTES ÄNDERUNGSDATUM: 2026-02-19 02:00 CET                     |
+//| ÄNDERUNGEN: FIX - MathIsNan/MathIsInf durch MQL5-kompatible Prüfung ersetzt |
 //+------------------------------------------------------------------+
 
 #property copyright "ARTS System"
-#property version   "1.40"
+#property version   "1.50"
 #property strict
 
 class CRiskManager
@@ -68,7 +68,8 @@ public:
       if(sl_pips <= 0) return 0;
       
       double position_size = risk_amount / (sl_pips * tick_value * (tick_size / point));
-      if(MathIsNan(position_size) || MathIsInf(position_size)) return 0;
+      // FIX v1.5: MQL5-kompatible NaN/Inf Prüfung (x != x ist true bei NaN)
+      if(position_size != position_size || position_size > max_lot * 100) return 0;
       
       position_size = MathFloor(position_size / lot_step) * lot_step;
       

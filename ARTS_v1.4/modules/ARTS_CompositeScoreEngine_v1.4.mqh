@@ -198,12 +198,12 @@ private:
       
       // FIX v1.4: Average bars 2-21 (exclude current)
       for(int i = 2; i <= m_volume_lookback + 1; i++)
-         avg_volume += iVolume(symbol, timeframe, i);
+         avg_volume += (double)iVolume(symbol, timeframe, i);
       avg_volume /= m_volume_lookback;
       
       if(avg_volume == 0) return 0;
       
-      double volume_ratio = current_volume / avg_volume;
+      double volume_ratio = (double)current_volume / avg_volume;
       
       if(volume_ratio > 1.8) return 15;
       else if(volume_ratio > 1.4) return 12;

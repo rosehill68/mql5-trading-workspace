@@ -44,7 +44,7 @@ public:
       }
       
       double current_spread = (ask - bid) / point;
-      double typical_spread = SymbolInfoInteger(symbol, SYMBOL_SPREAD);
+      double typical_spread = (double)SymbolInfoInteger(symbol, SYMBOL_SPREAD);
       
       if(typical_spread == 0)
          typical_spread = GetAverageHistoricalSpread(symbol);

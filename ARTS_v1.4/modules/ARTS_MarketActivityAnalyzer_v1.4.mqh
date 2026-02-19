@@ -89,12 +89,12 @@ private:
       
       // FIX v1.4: Average of bars 2-21 (exclude current bar)
       for(int i = 2; i <= 21; i++)
-         avg_volume += iVolume(symbol, PERIOD_H1, i);
+         avg_volume += (double)iVolume(symbol, PERIOD_H1, i);
       avg_volume /= 20;
       
       if(avg_volume == 0) return 0;
       
-      double volume_ratio = current_volume / avg_volume;
+      double volume_ratio = (double)current_volume / avg_volume;
       
       if(volume_ratio > 1.5) return 30;
       else if(volume_ratio > 1.0) return 20;
