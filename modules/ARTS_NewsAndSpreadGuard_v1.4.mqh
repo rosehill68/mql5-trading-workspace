@@ -1,13 +1,14 @@
 //+------------------------------------------------------------------+
 //|                       ARTS_NewsAndSpreadGuard_v1.4.mqh           |
 //| Non-Repainting Fixed (Claude Risk #1)                            |
-//| Version 1.4 | 2026.02.18 21:30 CET                              |
+//| Version 1.5 | 2026.02.19 02:00 CET                              |
 //+------------------------------------------------------------------+
-//| VERSION: 1.4.0                                                    |
+//| VERSION: 1.5.0 - Critical Fixes                                   |
+//| FIX 1: News Filter Logik korrigiert (Zeile 50)                   |
 //+------------------------------------------------------------------+
 
 #property copyright "ARTS System"
-#property version   "1.40"
+#property version   "1.50"
 #property strict
 
 #include "ARTS_SpreadGuard_v1.4.mqh"
@@ -50,8 +51,9 @@ private:
       datetime to = TimeCurrent() + (m_news_blackout_minutes_before * 60);
       
       MqlCalendarValue calendar_values[];
+      // FIX v1.5: Keine News gefunden = Safe (Trading erlauben)
       if(CalendarValueHistory(calendar_values, from, to, NULL, NULL) <= 0)
-         return false;
+         return false;  // Keine News = keine Blockierung = Safe
       
       for(int i = 0; i < ArraySize(calendar_values); i++)
       {

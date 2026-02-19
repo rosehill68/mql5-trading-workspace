@@ -1,15 +1,16 @@
 //+------------------------------------------------------------------+
 //|                                      ARTS_MasterEA_v1.4.mq5      |
 //| Non-Repainting Fixed (Claude Risk #1)                            |
-//| Version 1.4 | 2026.02.18 21:30 CET                              |
+//| Version 1.5 | 2026.02.19 02:00 CET                              |
 //+------------------------------------------------------------------+
-//| VERSION: 1.4.0                                                    |
-//| LETZTES ÄNDERUNGSDATUM: 2026-02-18 21:30 CET                     |
-//| ÄNDERUNGEN: Non-Repainting Fix - Bar[0] → Bar[1]                |
+//| VERSION: 1.5.0 - Critical Fixes                                   |
+//| LETZTES ÄNDERUNGSDATUM: 2026-02-19 02:00 CET                     |
+//| ÄNDERUNGEN: FIX 2 - Signal-Duplikation verhindert (Bar-Check)   |
+//|             FIX 3 - Supertrend Trailing Stop implementiert       |
 //+------------------------------------------------------------------+
 
 #property copyright "ARTS System"
-#property version   "1.40"
+#property version   "1.50"
 #property strict
 
 #include "modules\ARTS_RegimeDetector_v1.4.mqh"
@@ -81,6 +82,7 @@ CCompositeScoreEngine* g_ScoreEngine = NULL;
 CMultiSymbolScanner* g_Scanner = NULL;
 
 datetime g_LastScanTime = 0;
+datetime g_LastH1BarTime = 0;  // FIX v1.5: Verhindert Signal-Duplikation
 
 int OnInit()
 {
@@ -107,7 +109,7 @@ int OnInit()
    g_SignalManager.SetNotificationOptions(InpEnableEmail, InpEnablePush, InpEnableChartAlert, InpEnableSound);
    g_Scanner.SetMinimumScore(InpMinSignalScore);
    
-   Print("ARTS EA v1.4.0 gestartet - Non-Repainting Fixed ✓");
+   Print("ARTS EA v1.5.0 gestartet - Critical Fixes Applied ✓");
    
    return INIT_SUCCEEDED;
 }
@@ -132,6 +134,11 @@ void OnTick()
 {
    if(InpAutoTradingMode)
       g_PositionManager.ManageAllPositions();
+   
+   // FIX v1.5: Prüfe ob neuer H1-Bar entstanden (verhindert Duplikate)
+   datetime current_h1_bar = iTime(_Symbol, PERIOD_H1, 0);
+   if(current_h1_bar == g_LastH1BarTime) return;  // Noch derselbe Bar
+   g_LastH1BarTime = current_h1_bar;
    
    datetime current_time = TimeCurrent();
    if(current_time - g_LastScanTime < InpScanIntervalMinutes * 60) return;

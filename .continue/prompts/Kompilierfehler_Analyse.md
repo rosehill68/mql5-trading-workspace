@@ -6,6 +6,9 @@ invokable: true
 
 Working Mode: Analysis
 
+Language:
+- Respond in German only.
+
 Scope:
 Compiler errors ONLY.
 

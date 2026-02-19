@@ -1,15 +1,15 @@
 //+------------------------------------------------------------------+
 //|                             ARTS_PositionManager_v1.4.mqh        |
 //| Non-Repainting Fixed (Claude Risk #1)                            |
-//| Version 1.4 | 2026.02.18 21:30 CET                              |
+//| Version 1.5 | 2026.02.19 02:00 CET                              |
 //+------------------------------------------------------------------+
-//| VERSION: 1.4.0                                                    |
-//| LETZTES ÄNDERUNGSDATUM: 2026-02-18 21:30 CET                     |
-//| ÄNDERUNGEN: Non-Repainting, improved error handling             |
+//| VERSION: 1.5.0 - Critical Fixes                                   |
+//| LETZTES ÄNDERUNGSDATUM: 2026-02-19 02:00 CET                     |
+//| ÄNDERUNGEN: FIX 3 - Echter Supertrend Trailing Stop              |
 //+------------------------------------------------------------------+
 
 #property copyright "ARTS System"
-#property version   "1.40"
+#property version   "1.50"
 #property strict
 
 #include <Trade\Trade.mqh>
@@ -27,6 +27,9 @@ struct PositionTracker
    bool breakeven_set;
    bool trailing_active;
    double highest_profit_pips;
+   // FIX v1.5: Supertrend Persistenz
+   double prev_supertrend_lower;
+   double prev_supertrend_upper;
 };
 
 class CPositionManager
@@ -175,6 +178,8 @@ private:
       tracker.breakeven_set = false;
       tracker.trailing_active = false;
       tracker.highest_profit_pips = 0;
+      tracker.prev_supertrend_lower = 0;
+      tracker.prev_supertrend_upper = 0;
       
       m_tracked_positions[m_tracked_count] = tracker;
       m_tracked_count++;
@@ -229,13 +234,12 @@ private:
    {
       PositionTracker tracker = m_tracked_positions[tracker_index];
       
-      // FIX v1.4: Use bar 1 for non-repainting ATR
+      // FIX v1.5: Echter Supertrend-Algorithmus
       int handle_atr = iATR(m_position.Symbol(), PERIOD_CURRENT, m_trailing_period);
       if(handle_atr == INVALID_HANDLE) return;
       
       double atr_buffer[];
       ArraySetAsSeries(atr_buffer, true);
-      // FIX v1.4: Use bar 1 instead of bar 0
       if(CopyBuffer(handle_atr, 0, 1, 1, atr_buffer) <= 0)
       {
          IndicatorRelease(handle_atr);
@@ -245,17 +249,47 @@ private:
       double atr = atr_buffer[0];
       IndicatorRelease(handle_atr);
       
-      // FIX v1.4: Use bar 1 for high/low (non-repainting)
+      // Supertrend Basis-Berechnung (bar 1 für non-repainting)
       double high = iHigh(m_position.Symbol(), PERIOD_CURRENT, 1);
       double low = iLow(m_position.Symbol(), PERIOD_CURRENT, 1);
+      double close = iClose(m_position.Symbol(), PERIOD_CURRENT, 1);
       double hl_avg = (high + low) / 2.0;
       
+      // Basic Bands
+      double basic_lower_band = hl_avg - (m_trailing_multiplier * atr);
+      double basic_upper_band = hl_avg + (m_trailing_multiplier * atr);
+      
+      // Final Bands mit Persistenz (Supertrend-Logik)
+      double final_lower_band = basic_lower_band;
+      double final_upper_band = basic_upper_band;
+      
+      if(tracker.prev_supertrend_lower > 0)
+      {
+         if(basic_lower_band < tracker.prev_supertrend_lower || close < tracker.prev_supertrend_lower)
+            final_lower_band = basic_lower_band;
+         else
+            final_lower_band = tracker.prev_supertrend_lower;
+      }
+      
+      if(tracker.prev_supertrend_upper > 0)
+      {
+         if(basic_upper_band > tracker.prev_supertrend_upper || close > tracker.prev_supertrend_upper)
+            final_upper_band = basic_upper_band;
+         else
+            final_upper_band = tracker.prev_supertrend_upper;
+      }
+      
+      // Speichere für nächsten Durchlauf
+      m_tracked_positions[tracker_index].prev_supertrend_lower = final_lower_band;
+      m_tracked_positions[tracker_index].prev_supertrend_upper = final_upper_band;
+      
+      // Stop Loss setzen
       double new_sl;
       double current_sl = m_position.StopLoss();
       
       if(m_position.PositionType() == POSITION_TYPE_BUY)
       {
-         new_sl = hl_avg - (m_trailing_multiplier * atr);
+         new_sl = final_lower_band;
          if(new_sl > current_sl)
          {
             new_sl = NormalizeDouble(new_sl, m_symbol.Digits());
@@ -264,7 +298,7 @@ private:
       }
       else
       {
-         new_sl = hl_avg + (m_trailing_multiplier * atr);
+         new_sl = final_upper_band;
          if(new_sl < current_sl || current_sl == 0)
          {
             new_sl = NormalizeDouble(new_sl, m_symbol.Digits());

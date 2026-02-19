@@ -1,5 +1,8 @@
 Fix compilation errors only.
 
+Language:
+- Respond in German only.
+
 Rules:
 - No refactor
 - No logic changes

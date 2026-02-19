@@ -6,6 +6,9 @@ invokable: true
 
 Working Mode: Refactor
 
+Language:
+- Respond in German only.
+
 Rules:
 - Functional behavior must remain IDENTICAL
 - No new features
