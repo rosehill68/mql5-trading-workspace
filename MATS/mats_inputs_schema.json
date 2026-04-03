@@ -1,0 +1,250 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.com/mats/inputs-schema.json",
+  "title": "MATS Inputs Schema",
+  "description": "Schema für alle Eingabeparameter des Multi-Asset Trading System (MATS).",
+  "type": "object",
+  "additionalProperties": false,
+  "definitions": {
+    "TimeframeEnum": {
+      "type": "string",
+      "enum": [
+        "M1","M5","M15","M30","M60",
+        "PERIOD_M1","PERIOD_M5","PERIOD_M15","PERIOD_M30","PERIOD_M60",
+        "PERIOD_H1","PERIOD_H4","PERIOD_D1","PERIOD_W1","PERIOD_MN"
+      ]
+    },
+    "OperatorMode": {
+      "type": "string",
+      "enum": ["TradeAndSignal","OnlyTrade","OnlySignal"]
+    },
+    "ScanFrequency": {
+      "type": "string",
+      "enum": ["Bar","Tick","Time"]
+    },
+    "LogLevel": {
+      "type": "string",
+      "enum": ["Error","Info","Debug"]
+    },
+    "ErrorHandlingMode": {
+      "type": "string",
+      "enum": ["Ignore","Notify","Pause","PauseNotify"]
+    },
+    "Bool": { "type": "boolean" },
+    "NumberNonNeg": {
+      "type": "number",
+      "minimum": 0
+    },
+    "Percent01": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100
+    }
+  },
+  "properties": {
+    "Universe_Assets": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1,
+      "description": "Liste der zu scannenden Assets (z. B. EURUSD, GBPUSD, XAUUSD, BTCUSD, US500)."
+    },
+    "MinAverageVolume": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Mindest-Volumen-Threshold pro Asset (optional, je Asset-Gruppe nutzbar)."
+    },
+    "use_multi_timeframe": {
+      "type": "boolean",
+      "default": true,
+      "description": "Nutze echte HTF/LTF-User-Architecture. Falls false, HTF wird via Hochskalierung simuliert."
+    },
+    "htf_timeframe": {
+      "type": "string",
+      "description": "Higher Timeframe (HTF) für Regime-Erkennung.",
+      "enum": ["PERIOD_H4","PERIOD_D1","M1","M5","M15","M30","H1","H4","D1","W1"]
+    },
+    "ltf_timeframe": {
+      "type": "string",
+      "description": "Lower Timeframe (LTF) für Entry/Stops/Exit.",
+      "enum": ["PERIOD_H1","PERIOD_H4","M1","M5","M15","M30","M60","PERIOD_D1","PERIOD_W1"]
+    },
+
+    "RegimeRecognition": {
+      "type": "object",
+      "description": "Parameter für Regime-Erkennung (Chop vs. Trend vs. Extrem).",
+      "properties": {
+        "BBW_Period": { "type": "integer", "minimum": 1, "description": "Periode der BBW-Berechnung auf HTF." },
+        "BBW_StdDev": { "type": "number", "minimum": 0.1, "description": "StdDev-Multiplikator für BBW." },
+        "BBW_Chop_ZScore": { "type": "number", "minimum": 0, "maximum": 3, "description": "BB W-Z-Score unterhalb dieser Schwelle = Chop." },
+        "BBW_Extreme_ZScore": { "type": "number", "minimum": 0, "maximum": 5, "description": "BB W-Z-Score oberhalb dieser Schwelle = Extremvolatilität." },
+        "LSMA_Period_HTF": { "type": "integer", "minimum": 1, "description": "LSMA-Periode auf HTF." },
+        "LSMA_Slope_Threshold": { "type": "number", "minimum": 0, "description": "Schwelle für positive/negative Trend-Stärke auf HTF." },
+        "Chop_Filter_Enabled": { "type": "boolean", "default": true, "description": "Chop-Filter aktivieren." },
+        "Volatility_Filter": { "type": "boolean", "default": true, "description": "Extrem-Volatilität-Filter aktivieren." },
+        "Volatility_Threshold": { "type": "number", "minimum": 0, "description": "Schwellwert für Volatilitäts-Exremfälle." }
+      },
+      "required": ["BBW_Period","BBW_StdDev","BBW_Chop_ZScore","BBW_Extreme_ZScore","LSMA_Period_HTF","LSMA_Slope_Threshold"]
+    },
+
+    "TrendAndStop": {
+      "type": "object",
+      "description": "Kern-Logik für Trendfolgen und Stop-Management.",
+      "properties": {
+        "LSMA_Period_LTF": { "type": "integer", "minimum": 1, "description": "LSMA-Periode im LTF." },
+        "RSI_Period": { "type": "integer", "minimum": 1, "description": "RSI-Periode im LTF." },
+        "RSI_Long_Thresh": { "type": "number", "minimum": 0, "maximum": 100, "description": "Long-Momentum Schwelle." },
+        "RSI_Short_Thresh": { "type": "number", "minimum": 0, "maximum": 100, "description": "Short-Momentum Schwelle." },
+        "Pullback_Tolerance_ATR": { "type": "number", "minimum": 0, "description": "Pullback-Toleranz in AT-Ratio." },
+        "ATR_Period": { "type": "integer", "minimum": 1, "description": "ATR-Periode für Volatilität." },
+        "Stop_ATR_Multiplier": { "type": "number", "minimum": 0.1, "description": "Basis-Stop als Multiplikator von ATR." },
+        "Use_LSMA_Ratchet": { "type": "boolean", "default": true, "description": "Ratchet-Stop aktivieren." },
+        "Use_Dynamic_K": { "type": "boolean", "default": true, "description": "Dynamischen Stop-Multiplikator verwenden." },
+        "K_Low_Vola": { "type": "number", "minimum": 0, "description": "Multiplikator bei niedriger Volatilität." },
+        "K_Normal_Vola": { "type": "number", "minimum": 0, "description": "Multiplikator bei normaler Volatilität." },
+        "K_High_Vola": { "type": "number", "minimum": 0, "description": "Multiplikator bei hoher Volatilität." },
+        "Use_TP": { "type": "boolean", "default": false, "description": "Take-Profit verwenden?" },
+        "TP_ATR_Multiplier": { "type": "number", "minimum": 0, "description": "TP-Abstand als ATR-Multiplikator." },
+        "Min_CRV": { "type": "number", "minimum": 0, "description": "Min. CRV zur Trade-Eröffnung." }
+      },
+      "required": ["LSMA_Period_LTF","RSI_Period","RSI_Long_Thresh","RSI_Short_Thresh","Pullback_Tolerance_ATR","ATR_Period","Stop_ATR_Multiplier","Use_LSMA_Ratchet","Use_Dynamic_K","K_Low_Vola","K_Normal_Vola","K_High_Vola","Use_TP","TP_ATR_Multiplier","Min_CRV"]
+    },
+
+    "Normalization": {
+      "type": "object",
+      "description": "Normalisierung & Asset-Unabhängigkeit.",
+      "properties": {
+        "Normalization_Mode": {
+          "type": "string",
+          "enum": ["Z-Score","Percent","ScaledReturns"],
+          "description": "Art der Normalisierung."
+        },
+        "Normalization_Lookback": { "type": "integer","minimum": 1, "description": "Lookback-Fenster für Normalisierung." },
+        "Volatility_Normalization": { "type": "boolean", "default": true, "description": "Slope durch ATR teilen (Volatilität-Normalisierung)." },
+        "Symbol_Scaling": { "type": "boolean", "default": true, "description": "Pro Asset automatische Trigger-Schwellen anpassen." }
+      },
+      "required": ["Normalization_Mode","Normalization_Lookback"]
+    },
+
+    "ScanningExecution": {
+      "type": "object",
+      "description": "Signale scannen, Confidences berechnen, Execution-Optionen.",
+      "properties": {
+        "SignalScan_Frequency": { "type": "string", "description": "Scan-Intervall." , "enum": ["Bar","Tick","Time"] },
+        "SignalConfidenceThreshold": { "type": "number", "minimum": 0, "maximum": 1, "description": "Mindest-Score (0.0–1.0) für Handel." },
+        "Min_WinRate_Filter": { "type": "number", "minimum": 0, "maximum": 1, "description": "Min. historische Winrate pro Asset." },
+        "Signal_Universe_Scanning": { "type": "boolean", "default": true, "description": "Alle Assets automatisch scannen." }
+      },
+      "required": ["SignalScan_Frequency","SignalConfidenceThreshold","Min_WinRate_Filter","Signal_Universe_Scanning"]
+    },
+
+    "RiskManagementMT5": {
+      "type": "object",
+      "description": "Risikomanagement für MT5-Konto (global).",
+      "properties": {
+        "mt5_risk_per_trade_pct": { "type": "number", "minimum": 0, "maximum": 100, "description": "Risiko pro Trade in % des MT5-Kontos." },
+        "mt5_max_active_trades": { "type": "integer", "minimum": 1, "description": "Max. parallele MT5-Trades (global)."},
+        "mt5_max_daily_loss_pct": { "type": "number", "minimum": 0, "maximum": 100, "description": "Tagesverlust-Limit in %."},
+        "mt5_max_weekly_loss_pct": { "type": "number", "minimum": 0, "maximum": 100, "description": "Wochentages-Verlust-Limit in %."},
+        "mt5_max_spread_atr_ratio": { "type": "number", "minimum": 0, "description": "Max Spread/ATR-Verhältnis."},
+        "mt5_correlation_threshold": { "type": "number","minimum": 0,"maximum":1,"description":"Korrelations-Schwellwert (0–1) zur Warnung."}
+      },
+      "required": ["mt5_risk_per_trade_pct","mt5_max_active_trades","mt5_max_daily_loss_pct","mt5_max_weekly_loss_pct","mt5_max_spread_atr_ratio","mt5_correlation_threshold"]
+    },
+
+    "TVAccountParams": {
+      "type": "object",
+      "description": "TV-Konto-Parameter (via tv_params.csv).",
+      "properties": {
+        "tv_account_balance": { "type": "number", "description": "TV-Kontostand (manuell gepflegt)." },
+        "tv_initial_balance": { "type": "number", "description": "TV-Startkapital." },
+        "tv_risk_per_trade_pct": { "type": "number", "description": "Risikoper Trade in Prozent des TV-Kontos." },
+        "tv_max_active_trades": { "type": "integer", "description": "Max. parallele TV-Trades." },
+        "tv_current_open_trades": { "type": "integer", "description": "Aktuell offene TV-Trades (manuell)." },
+        "tv_hard_drawdown_pct": { "type": "number", "description": "Hard Drawdown in Prozent (UFunded)."},
+        "tv_soft_drawdown_pct": { "type": "number", "description": "Soft Drawdown in Prozent."},
+        "tv_send_signals": { "type": "boolean" , "description": "Sende Signale per Email an TV."},
+        "tv_send_update_reminder": { "type": "boolean", "description": "Erinnerungs-Emails senden?"}
+      },
+      "required": ["tv_account_balance","tv_initial_balance","tv_risk_per_trade_pct","tv_max_active_trades","tv_hard_drawdown_pct","tv_soft_drawdown_pct","tv_send_signals","tv_send_update_reminder"]
+    },
+
+    "TVConfigOptionalExtras": {
+      "type": "object",
+      "description": "Optionale Felder, z. B. HDD/US-Dollar-Dummies oder zukünftige Erweiterungen.",
+      "properties": {
+        "tv_hard_drawdown_usd": { "type": ["number","null"], "description": "Optionale harte Drawdown in USD (falls verwendet)."}
+      },
+      "required": []
+    },
+
+    "NormalizationExtras": {
+      "type": "object",
+      "description": "Zusatzparameter für Normalisierung (optional in Zukunft).",
+      "properties": {}
+    },
+
+    "OperationAndIdentity": {
+      "type": "object",
+      "description": "Betriebsmodus & Instanz-Identifikation.",
+      "properties": {
+        "OperationMode": { "type": "string", "description": "Betriebsmodus", "enum": ["TradeAndSignal","OnlyTrade","OnlySignal"] },
+        "MagicNumber": { "type": "integer", "description": "Instanz-Magic-Number." }
+      },
+      "required": ["OperationMode","MagicNumber"]
+    },
+
+    "SessionsAndNews": {
+      "type": "object",
+      "description": "Handelszeiten & News-Filter.",
+      "properties": {
+        "Session_Start_UTC": { "type": "integer", "minimum": 0, "maximum": 23 },
+        "Session_End_UTC": { "type": "integer", "minimum": 0, "maximum": 23 },
+        "News_Filter_Enabled": { "type": "boolean" },
+        "News_Pause_Minutes_Before": { "type": "integer", "minimum": 0 },
+        "News_Pause_Minutes_After": { "type": "integer", "minimum": 0 }
+      },
+      "required": ["Session_Start_UTC","Session_End_UTC","News_Filter_Enabled","News_Pause_Minutes_Before","News_Pause_Minutes_After"]
+    },
+
+    "LoggingVisuals": {
+      "type": "object",
+      "description": "Logging- und Chart-Optionen.",
+      "properties": {
+        "Log_Level": { "$ref": "#/definitions/LogLevel" },
+        "Chart_Visualization": { "type": "boolean" },
+        "Enable_Simulator": { "type": "boolean" },
+        "Data_Retention_Days": { "type": "integer", "minimum": 0 },
+        "Error_Handling_Mode": { "type": "string", "enum": ["Ignore","Notify","Pause","PauseNotify"] }
+      }
+    },
+
+    "WindowSizes": {
+      "type": "object",
+      "description": "Zentrale Fenster-/Perioden-Einstellungen.",
+      "properties": {
+        "Window_LSMA": { "type": "integer", "minimum": 1 },
+        "Window_BBW": { "type": "integer", "minimum": 1 },
+        "Window_RSI": { "type": "integer", "minimum": 1 },
+        "Window_ATR": { "type": "integer", "minimum": 1 },
+        "Window_Normalization": { "type": "integer", "minimum": 1 }
+      },
+      "required": ["Window_LSMA","Window_BBW","Window_RSI","Window_ATR","Window_Normalization"]
+    }
+  },
+  "required": [
+    "Universe_Assets",
+    "use_multi_timeframe",
+    "htf_timeframe",
+    "ltf_timeframe",
+    "RegimeRecognition",
+    "TrendAndStop",
+    "Normalization",
+    "ScanningExecution",
+    "RiskManagementMT5",
+    "TVAccountParams",
+    "OperationAndIdentity",
+    "SessionsAndNews",
+    "LoggingVisuals",
+    "WindowSizes"
+  ]
+}
